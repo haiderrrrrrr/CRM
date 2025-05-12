@@ -6,12 +6,10 @@ on:
 
 jobs:
   build-and-deploy:
-    # Must match the labels you gave your self-hosted runner (e.g. "self-hosted", "windows" or "linux")
     runs-on: [ self-hosted, windows ]
 
-    # Make Docker Hub creds available
     env:
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}  # should be zeehaids1203
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
 
     steps:
@@ -37,29 +35,32 @@ jobs:
       - name: Log in to Docker Hub
         shell: powershell
         run: |
-          echo $Env:DOCKER_PASSWORD | docker login -u $Env:DOCKER_USERNAME --password-stdin
+          Write-Output $Env:DOCKER_PASSWORD `
+            | docker login --username $Env:DOCKER_USERNAME --password-stdin
 
       - name: Build & tag backend image
         shell: powershell
         run: |
           docker build `
-            -t $Env:DOCKER_USERNAME/idurar-erp-crm-backend:latest `
+            -t zeehaids1203/idurar-erp-crm-backend:latest `
             -f backend/Dockerfile backend
 
       - name: Build & tag frontend image
         shell: powershell
         run: |
           docker build `
-            -t $Env:DOCKER_USERNAME/idurar-frontend:latest `
+            -t zeehaids1203/idurar-frontend:latest `
             -f frontend/Dockerfile frontend
 
       - name: Push backend image to Docker Hub
         shell: powershell
-        run: docker push $Env:DOCKER_USERNAME/idurar-erp-crm-backend:latest
+        run: |
+          docker push zeehaids1203/idurar-erp-crm-backend:latest
 
       - name: Push frontend image to Docker Hub
         shell: powershell
-        run: docker push $Env:DOCKER_USERNAME/idurar-frontend:latest
+        run: |
+          docker push zeehaids1203/idurar-frontend:latest
 
       - name: Deploy to Minikube (apply k8s)
         shell: powershell
