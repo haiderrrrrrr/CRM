@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo
+  namespace: idurar
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongo
+  template:
+    metadata:
+      labels:
+        app: mongo
+    spec:
+      containers:
+      - name: mongo
+        image: mongo:7
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: MONGO_INITDB_DATABASE
+          value: ecommerce
+        ports:
+        - containerPort: 27017
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: idurar
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        image: zeehaids1203/idurar-erp-crm-backend:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: DATABASE
+          value: mongodb://mongo-service:27017/ecommerce
+        - name: JWT_SECRET
+          value: your_private_jwt_secret_key
+        - name: NODE_ENV
+          value: "production"
+        - name: PUBLIC_SERVER_FILE
+          value: http://localhost:8888/
+        ports:
+        - containerPort: 8888
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: idurar
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: zeehaids1203/idurar-frontend:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: VITE_BACKEND_SERVER
+          value: http://backend-service:8888
+        - name: VITE_FILE_BASE_URL
+          value: http://localhost:8888/
+        - name: PROD
+          value: "false"
+        ports:
+        - containerPort: 80

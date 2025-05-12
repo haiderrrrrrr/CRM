@@ -1,0 +1,21 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: seed-db
+  namespace: idurar
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: seed
+        image: zeehaids1203/idurar-erp-crm-backend:latest
+        imagePullPolicy: IfNotPresent
+        command: ["npm", "run", "setup"]
+        env:
+        - name: DATABASE
+          value: mongodb://mongo-service:27017/ecommerce
+        - name: JWT_SECRET
+          value: your_private_jwt_secret_key
+        - name: NODE_ENV
+          value: "production"
