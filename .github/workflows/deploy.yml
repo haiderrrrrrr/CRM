@@ -1,0 +1,50 @@
+name: Deploy to Minikube
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: [ self-hosted, windows ]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Ensure Minikube is running
+        shell: powershell
+        run: |
+          if (-not(minikube status --format '{{.Host}}' -ErrorAction SilentlyContinue)) {
+            minikube start
+          }
+
+      - name: Configure kubectl context
+        shell: powershell
+        run: |
+          kubectl config use-context minikube
+
+      - name: Point Docker to Minikube
+        shell: powershell
+        run: |
+          & minikube docker-env --shell powershell | Invoke-Expression
+
+      - name: Pull latest images
+        shell: powershell
+        run: |
+          docker pull $env:DOCKER_USERNAME/idurar-erp-crm-backend:latest
+          docker pull $env:DOCKER_USERNAME/idurar-frontend:latest
+
+      - name: Apply Kubernetes manifests
+        shell: powershell
+        run: |
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
+
+      - name: Wait for deployments to roll out
+        shell: powershell
+        run: |
+          kubectl rollout status deployment/mongo -n idurar
+          kubectl rollout status deployment/backend -n idurar
+          kubectl rollout status deployment/frontend -n idurar
