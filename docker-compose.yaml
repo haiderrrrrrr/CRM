@@ -1,0 +1,40 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: idurar-mongo
+    restart: always
+    environment:
+      MONGO_INITDB_DATABASE: ecommerce
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      - "27017:27017"
+
+  backend:
+    build:
+      context: ./backend
+    container_name: idurar-backend
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE: "mongodb://mongo:27017/ecommerce"
+      PORT: 8888
+    depends_on:
+      - mongo
+    ports:
+      - "8888:8888"
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: idurar-frontend
+    env_file:
+      - ./frontend/.env
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+
+volumes:
+  mongo-data:
