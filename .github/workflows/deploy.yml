@@ -8,6 +8,10 @@ jobs:
   deploy:
     runs-on: [ self-hosted, windows ]
 
+    # make secrets available as env vars
+    env:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -29,10 +33,14 @@ jobs:
         run: |
           & minikube docker-env --shell powershell | Invoke-Expression
 
-      - name: Pull latest images
+      - name: Pull latest backend image
         shell: powershell
         run: |
           docker pull $env:DOCKER_USERNAME/idurar-erp-crm-backend:latest
+
+      - name: Pull latest frontend image
+        shell: powershell
+        run: |
           docker pull $env:DOCKER_USERNAME/idurar-frontend:latest
 
       - name: Apply Kubernetes manifests
