@@ -1,16 +1,18 @@
-name: Deploy to Minikube
+name: Build & Deploy to Minikube
 
 on:
   push:
     branches: [ main ]
 
 jobs:
-  deploy:
+  build-and-deploy:
+    # Must match the labels you gave your self-hosted runner (e.g. "self-hosted", "windows" or "linux")
     runs-on: [ self-hosted, windows ]
 
-    # make secrets available as env vars
+    # Make Docker Hub creds available
     env:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
 
     steps:
       - name: Checkout code
@@ -19,38 +21,54 @@ jobs:
       - name: Ensure Minikube is running
         shell: powershell
         run: |
-          if (-not(minikube status --format '{{.Host}}' -ErrorAction SilentlyContinue)) {
+          if (-not (minikube status --format '{{.Host}}' -ErrorAction SilentlyContinue)) {
             minikube start
           }
 
       - name: Configure kubectl context
         shell: powershell
-        run: |
-          kubectl config use-context minikube
+        run: kubectl config use-context minikube
 
-      - name: Point Docker to Minikube
+      - name: Point Docker CLI at Minikube’s daemon
         shell: powershell
         run: |
           & minikube docker-env --shell powershell | Invoke-Expression
 
-      - name: Pull latest backend image
+      - name: Log in to Docker Hub
         shell: powershell
         run: |
-          docker pull $env:DOCKER_USERNAME/idurar-erp-crm-backend:latest
+          echo $Env:DOCKER_PASSWORD | docker login -u $Env:DOCKER_USERNAME --password-stdin
 
-      - name: Pull latest frontend image
+      - name: Build & tag backend image
         shell: powershell
         run: |
-          docker pull $env:DOCKER_USERNAME/idurar-frontend:latest
+          docker build `
+            -t $Env:DOCKER_USERNAME/idurar-erp-crm-backend:latest `
+            -f backend/Dockerfile backend
 
-      - name: Apply Kubernetes manifests
+      - name: Build & tag frontend image
+        shell: powershell
+        run: |
+          docker build `
+            -t $Env:DOCKER_USERNAME/idurar-frontend:latest `
+            -f frontend/Dockerfile frontend
+
+      - name: Push backend image to Docker Hub
+        shell: powershell
+        run: docker push $Env:DOCKER_USERNAME/idurar-erp-crm-backend:latest
+
+      - name: Push frontend image to Docker Hub
+        shell: powershell
+        run: docker push $Env:DOCKER_USERNAME/idurar-frontend:latest
+
+      - name: Deploy to Minikube (apply k8s)
         shell: powershell
         run: |
           kubectl apply -f k8s/namespace.yaml
           kubectl apply -f k8s/deployment.yaml
           kubectl apply -f k8s/service.yaml
 
-      - name: Wait for deployments to roll out
+      - name: Wait for rollout to complete
         shell: powershell
         run: |
           kubectl rollout status deployment/mongo -n idurar
